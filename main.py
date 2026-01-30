@@ -181,6 +181,12 @@ def ask_llm(
 
 # 5. Simple CLI
 def main():
+    if not os.path.isdir(DATA_DIR):
+        raise FileNotFoundError(
+            f"DATA_DIR '{DATA_DIR}' does not exist. "
+            f"Create a '{DATA_DIR}' folder next to main.py and add .txt/.md policy files."
+        )
+
     if not os.path.exists(CHROMA_DIR):
         print("Building vector store from data/ ...")
         docs = load_documents(DATA_DIR)
@@ -189,14 +195,14 @@ def main():
 
     vectordb = load_vector_store()
     print("Policy RAG assistant ready. Type 'exit' to quit.")
+
     while True:
         q = input("\nUser: ")
         if q.lower().strip() in ("exit", "quit"):
             break
         answer = ask_llm(q, vectordb)
         print("\nAssistant:\n", answer)
-
-
+                                    
 if __name__ == "__main__":
     main()
 S
