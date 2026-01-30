@@ -2,4 +2,5 @@ python-dotenv>=1.0.0
 langchain
 chromadb
 langchain-community
+openai>=1.0.0
 
