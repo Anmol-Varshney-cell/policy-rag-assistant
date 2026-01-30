@@ -1,208 +1,182 @@
-import os
-from typing import List, Dict
+#!/usr/bin/env python3
+"""RAG Assistant CLI - Company Policy Q&A System"""
 
-from dotenv import load_dotenv
-from openai import OpenAI
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import OpenAIEmbeddings
+import asyncio
+import sys
+from pathlib import Path
 
-load_dotenv()
+# Add backend to path
+sys.path.insert(0, str(Path(__file__).parent))
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key="sk-proj-....")
-
-DATA_DIR = "data"
-CHROMA_DIR = "chroma_db"
+from rag_system.rag_pipeline import RAGPipeline
+from rag_system.evaluate import RAGEvaluator
+from rag_system.prompts import PromptTemplates
 
 
-# 1. Data Preparation: load & chunk documents
-def load_documents(data_dir: str) -> List[Dict]:
-    docs = []
-    for fname in os.listdir(data_dir):
-        if not fname.lower().endswith((".txt", ".md")):
-            continue
-        path = os.path.join(data_dir, fname)
-        with open(path, "r", encoding="utf-8") as f:
-            text = f.read()
-        docs.append({"source": fname, "text": text})
-    return docs
-
-
-def chunk_documents(
-    docs: List[Dict], chunk_size: int = 600, chunk_overlap: int = 100
-) -> List[Dict]:
-    """
-    Chunk size ~600 chars with 100 overlap:
-
-    - Big enough to keep a full policy clause/section together
-    - Small enough that multiple chunks fit in the LLM context
-    - Overlap avoids cutting important sentences in half
-    """
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        separators=["\n\n", "\n", ".", " "],
-    )
-    all_chunks = []
-    for doc in docs:
-        chunks = splitter.split_text(doc["text"])
-        for i, chunk in enumerate(chunks):
-            all_chunks.append(
-                {
-                    "page_content": chunk,
-                    "metadata": {"source": doc["source"], "chunk_id": i},
-                }
-            )
-    return all_chunks
-
-
-# 2. RAG Pipeline: embeddings + vector store
-def build_vector_store(chunks: List[Dict]) -> Chroma:
-    texts = [c["page_content"] for c in chunks]
-    metadatas = [c["metadata"] for c in chunks]
-    embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-    vectordb = Chroma.from_texts(
-        texts=texts,
-        embedding=embeddings,
-        metadatas=metadatas,
-        persist_directory=CHROMA_DIR,
-    )
-    vectordb.persist()
-    return vectordb
-
-
-def load_vector_store() -> Chroma:
-    embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-    vectordb = Chroma(
-        embedding_function=embeddings,
-        persist_directory=CHROMA_DIR,
-    )
-    return vectordb
-
-
-# 3. Prompt Engineering: initial and improved prompts
-
-SYSTEM_PROMPT_V1 = """
-You are a helpful company policy assistant.
-
-Rules:
-- Use the provided policy context to answer user questions.
-- If the answer is not clearly in the context, you may say you are not sure.
-- Be polite and concise.
-- Prefer paraphrasing the policy in simple language.
-
-Format:
-Answer:
-- ...
-
-(Optional) Policy reference:
-- Source file names if relevant.
-"""
-
-SYSTEM_PROMPT_V2 = """
-You are a strict, compliance-focused company policy assistant.
-
-Instructions:
-- Answer ONLY using the context below.
-- If information is missing or unclear, explicitly state:
-  "This is not specified in the available policy documents."
-- Do NOT guess or add any information that is not grounded in the context.
-- Be concise and structured.
-- Include a short justification referencing relevant snippets and file names.
-
-Output format (Markdown):
-
-## Answer
-- ...
-
-## Evidence
-- Source: <file>, brief quote or summary
-
-## Confidence
-- One of: High / Medium / Low (based on how directly the context supports the answer).
-"""
-
-
-def build_user_prompt(question: str, context_chunks: List[Dict]) -> str:
-    context_strs = []
-    for c in context_chunks:
-        meta = c["metadata"]
-        context_strs.append(
-            f"[SOURCE: {meta.get('source')} | CHUNK: {meta.get('chunk_id')}]\n{c['page_content']}"
-        )
-    context_block = "\n\n---\n\n".join(context_strs)
-    user_prompt = f"""You are given company policy context and a user question.
-
-Context:
-{context_block}
-
-User question:
-{question}
-"""
-    return user_prompt
-
-
-# 4. Ask LLM with retrieved context
-def ask_llm(
-    question: str,
-    vectordb: Chroma,
-    system_prompt: str = SYSTEM_PROMPT_V2,
-    k: int = 4,
-) -> str:
-    retriever = vectordb.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": k},
-    )
-    docs = retriever.get_relevant_documents(question)
-
-    if not docs:
-        return (
-            "I could not find any relevant policy information for this question "
-            "in the available documents."
-        )
-
-    context_chunks = [
-        {"page_content": d.page_content, "metadata": d.metadata} for d in docs
-    ]
-    user_prompt = build_user_prompt(question, context_chunks)
-
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.2,
-    )
-
-    return completion.choices[0].message.content
-
-
-# 5. Simple CLI
-def main():
-    if not os.path.isdir(DATA_DIR):
-        raise FileNotFoundError(
-            f"DATA_DIR '{DATA_DIR}' does not exist. "
-            f"Create a '{DATA_DIR}' folder next to main.py and add .txt/.md policy files."
-        )
-
-    if not os.path.exists(CHROMA_DIR):
-        print("Building vector store from data/ ...")
-        docs = load_documents(DATA_DIR)
-        chunks = chunk_documents(docs)
-        build_vector_store(chunks)
-
-    vectordb = load_vector_store()
-    print("Policy RAG assistant ready. Type 'exit' to quit.")
-
+async def main():
+    print("""
+    ╔════════════════════════════════════════════════════════════╗
+    ║    RAG Assistant - Company Policy Q&A System              ║
+    ║    TechShop Inc. Support Assistant                        ║
+    ╚════════════════════════════════════════════════════════════╝
+    """)
+    
+    # Initialize RAG pipeline
+    data_dir = Path(__file__).parent / "data" / "policies"
+    index_dir = Path(__file__).parent / "vector_index"
+    
+    print("Initializing RAG system...\n")
+    rag = RAGPipeline(str(data_dir), str(index_dir))
+    
+    # Build or load index
+    try:
+        await rag.build_index(force_rebuild=False)
+    except Exception as e:
+        print(f"Error building index: {e}")
+        return
+    
+    # Main menu
     while True:
-        q = input("\nUser: ")
-        if q.lower().strip() in ("exit", "quit"):
+        print("\n" + "="*60)
+        print("MAIN MENU")
+        print("="*60)
+        print("1. Ask a question (interactive mode)")
+        print("2. Run evaluation suite")
+        print("3. Compare prompt versions")
+        print("4. View prompt improvement explanation")
+        print("5. View vector store statistics")
+        print("6. Rebuild vector index")
+        print("0. Exit")
+        print("="*60)
+        
+        choice = input("\nSelect an option (0-6): ").strip()
+        
+        if choice == '1':
+            await interactive_mode(rag)
+        
+        elif choice == '2':
+            await run_evaluation(rag)
+        
+        elif choice == '3':
+            await compare_prompts(rag)
+        
+        elif choice == '4':
+            print("\n" + PromptTemplates.get_improvement_explanation())
+            input("\nPress Enter to continue...")
+        
+        elif choice == '5':
+            stats = rag.vector_store.get_stats()
+            print("\nVector Store Statistics:")
+            for key, value in stats.items():
+                print(f"  {key}: {value}")
+            input("\nPress Enter to continue...")
+        
+        elif choice == '6':
+            print("\nRebuilding vector index...")
+            await rag.build_index(force_rebuild=True)
+            print("Index rebuilt successfully!")
+            input("\nPress Enter to continue...")
+        
+        elif choice == '0':
+            print("\nThank you for using RAG Assistant! Goodbye.")
             break
-        answer = ask_llm(q, vectordb)
-        print("\nAssistant:\n", answer)
-                                    
+        
+        else:
+            print("\nInvalid option. Please try again.")
+
+
+async def interactive_mode(rag: RAGPipeline):
+    """Interactive Q&A mode."""
+    print("\n" + "="*60)
+    print("INTERACTIVE Q&A MODE")
+    print("="*60)
+    print("Ask questions about TechShop policies.")
+    print("Type 'back' to return to main menu.\n")
+    
+    while True:
+        question = input("\nYour question: ").strip()
+        
+        if question.lower() in ['back', 'exit', 'quit']:
+            break
+        
+        if not question:
+            print("Please enter a question.")
+            continue
+        
+        print("\nProcessing...")
+        
+        try:
+            result = await rag.answer_question(question, use_improved=True)
+            
+            print("\n" + "-"*60)
+            print("ANSWER:")
+            print("-"*60)
+            print(result['answer'])
+            print("\n" + "-"*60)
+            print("SOURCES:")
+            for i, source in enumerate(result['sources'], 1):
+                print(f"  {i}. {source['policy']} (chunk {source['chunk_id']})")
+            print("-"*60)
+            
+        except Exception as e:
+            print(f"\nError: {e}")
+            print("Please try again or contact support.")
+
+
+async def run_evaluation(rag: RAGPipeline):
+    """Run evaluation suite."""
+    print("\n" + "="*60)
+    print("RUNNING EVALUATION SUITE")
+    print("="*60)
+    
+    # Run evaluation with improved prompt
+    results = await RAGEvaluator.run_evaluation(rag, prompt_version='improved')
+    
+    # Print summary
+    RAGEvaluator.print_summary(results)
+    
+    # Save results
+    output_path = Path(__file__).parent / "evaluation_results.json"
+    RAGEvaluator.save_results(results, str(output_path))
+    
+    input("\nPress Enter to continue...")
+
+
+async def compare_prompts(rag: RAGPipeline):
+    """Compare initial vs improved prompt on sample questions."""
+    print("\n" + "="*60)
+    print("PROMPT COMPARISON")
+    print("="*60)
+    
+    test_questions = [
+        "What is the refund policy for digital products?",
+        "Do you offer student discounts?"
+    ]
+    
+    for question in test_questions:
+        print(f"\nQuestion: {question}")
+        print("\n" + "-"*60)
+        
+        # Initial prompt
+        print("INITIAL PROMPT (V1):")
+        result_v1 = await rag.answer_question(question, use_improved=False)
+        print(result_v1['answer'])
+        
+        print("\n" + "-"*60)
+        
+        # Improved prompt
+        print("IMPROVED PROMPT (V2):")
+        result_v2 = await rag.answer_question(question, use_improved=True)
+        print(result_v2['answer'])
+        
+        print("\n" + "="*60)
+    
+    input("\nPress Enter to continue...")
+
+
 if __name__ == "__main__":
-    main()
-S
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user. Exiting...")
+        sys.exit(0)
