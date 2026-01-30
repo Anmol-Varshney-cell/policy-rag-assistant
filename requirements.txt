@@ -1,0 +1,7 @@
+python-dotenv>=1.0.0
+python-dotenv
+openai
+langchain
+langchain-community
+chromadb
+tiktoken
