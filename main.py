@@ -1,4 +1,4 @@
-"# Complete RAG System Code
+# Complete RAG System Code
 
 This document contains all the code files for the RAG system.
 
