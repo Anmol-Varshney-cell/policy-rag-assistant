@@ -1,3 +1,4 @@
+!pip install python-dotenv
 import os
 from typing import List, Dict
 
