@@ -1,3 +1,22 @@
+## 📁 File Structure
+
+```
+/app/backend/
+├── rag_system/
+│   ├── __init__.py
+│   ├── data_prep.py
+│   ├── embeddings.py
+│   ├── vector_store.py
+│   ├── prompts.py
+│   ├── rag_pipeline.py
+│   └── evaluate.py
+├── data/policies/
+│   ├── refund_policy.txt
+│   ├── cancellation_policy.txt
+│   └── shipping_policy.txt
+├── rag_assistant.py
+└── requirements.txt
+```
 # policy-rag-assistant
 “A lightweight Retrieval-Augmented Generation (RAG) assistant that answers questions over company policy documents using Python, embeddings, and a Chroma vector store.”
 # Policy RAG Assistant
