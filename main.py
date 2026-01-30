@@ -2,30 +2,6 @@
 
 This document contains all the code files for the RAG system.
 
----
-
-## 📁 File Structure
-
-```
-/app/backend/
-├── rag_system/
-│   ├── __init__.py
-│   ├── data_prep.py
-│   ├── embeddings.py
-│   ├── vector_store.py
-│   ├── prompts.py
-│   ├── rag_pipeline.py
-│   └── evaluate.py
-├── data/policies/
-│   ├── refund_policy.txt
-│   ├── cancellation_policy.txt
-│   └── shipping_policy.txt
-├── rag_assistant.py
-└── requirements.txt
-```
-
----
-
 ## 1. `/app/backend/rag_system/__init__.py`
 
 ```python
