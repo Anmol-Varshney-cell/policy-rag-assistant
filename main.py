@@ -9,7 +9,7 @@ from langchain_community.embeddings import OpenAIEmbeddings
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("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")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 DATA_DIR = "data"
