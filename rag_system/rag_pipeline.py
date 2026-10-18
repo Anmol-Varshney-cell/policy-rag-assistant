@@ -33,7 +33,7 @@ class RAGPipeline:
 
         # LLM setup (Gemini API - free tier, no billing account needed)
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        self.model = os.getenv("GEMINI_CHAT_MODEL", "gemini-2.5-flash")
+        self.model = os.getenv("GEMINI_CHAT_MODEL", "gemini-3.6-flash")
 
         # Prompt templates
         self.prompts = PromptTemplates()
