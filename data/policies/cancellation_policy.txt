@@ -1,0 +1,33 @@
+NOTE: This is a SAMPLE policy document written for demo purposes,
+not a real recovered company policy.
+
+COMPANY CANCELLATION POLICY
+Last Updated: January 2026
+
+1. OVERVIEW
+This policy explains how customers can cancel orders placed with TechShop Inc. and what happens after a cancellation.
+
+2. CANCELLATION WINDOW
+- Orders can be cancelled free of charge within 24 hours of purchase
+- After 24 hours, orders that have not shipped can still be cancelled with a 10% processing fee
+- Orders that have already shipped cannot be cancelled; please use the refund process instead
+
+3. HOW TO CANCEL
+Step 1: Email support@techshop.com with your order number and "Cancellation" in the subject line
+Step 2: Our team confirms cancellation eligibility within 1 business day
+Step 3: You receive a cancellation confirmation email
+
+4. REFUNDS FOR CANCELLED ORDERS
+- Cancellations within 24 hours: full refund to the original payment method within 3-5 business days
+- Cancellations after 24 hours: refund minus the 10% processing fee within 5-7 business days
+
+5. SUBSCRIPTION CANCELLATIONS
+- Subscriptions can be cancelled anytime from your account page
+- Access continues until the end of the current billing period
+- No partial refunds for unused time in a billing period
+
+6. CONTACT INFORMATION
+For cancellation inquiries:
+Email: support@techshop.com
+Phone: 1-800-TECH-SHOP
+Business Hours: Monday-Friday, 9 AM - 6 PM EST
