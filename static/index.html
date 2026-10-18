@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policy RAG Assistant</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  header { padding: 24px 16px 8px; text-align: center; }
+  header h1 { font-size: 1.5rem; }
+  header p { color: #94a3b8; font-size: 0.9rem; margin-top: 6px; }
+  #chat { width: 100%; max-width: 720px; flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .msg { padding: 12px 16px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; }
+  .user { background: #2563eb; align-self: flex-end; max-width: 85%; }
+  .bot { background: #1e293b; align-self: flex-start; max-width: 85%; }
+  .sources { margin-top: 8px; font-size: 0.8rem; color: #94a3b8; }
+  #inputbar { width: 100%; max-width: 720px; display: flex; gap: 8px; padding: 16px; }
+  #q { flex: 1; padding: 12px 16px; border-radius: 10px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; font-size: 1rem; }
+  #q:focus { outline: none; border-color: #2563eb; }
+  button { padding: 12px 20px; border: none; border-radius: 10px; background: #2563eb; color: white; font-size: 1rem; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .hint { color: #64748b; font-size: 0.8rem; text-align: center; padding-bottom: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Policy RAG Assistant</h1>
+  <p>Demo project - answers questions over sample company policy documents (refund, cancellation, shipping, leave, code of conduct).</p>
+</header>
+<div id="chat"></div>
+<div id="inputbar">
+  <input id="q" type="text" placeholder="e.g. What is the refund policy for digital products?" autofocus>
+  <button id="send" onclick="ask()">Ask</button>
+</div>
+<p class="hint">First question may take a few seconds while the policy index loads.</p>
+<script>
+const chat = document.getElementById('chat');
+const q = document.getElementById('q');
+const sendBtn = document.getElementById('send');
+
+function addMsg(text, cls, sources) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.textContent = text;
+  if (sources && sources.length) {
+    const s = document.createElement('div');
+    s.className = 'sources';
+    s.textContent = 'Sources: ' + sources.map(x => x.policy).join(', ');
+    div.appendChild(s);
+  }
+  chat.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function ask() {
+  const question = q.value.trim();
+  if (!question) return;
+  q.value = '';
+  sendBtn.disabled = true;
+  addMsg(question, 'user');
+  const thinking = document.createElement('div');
+  thinking.className = 'msg bot';
+  thinking.textContent = 'Thinking...';
+  chat.appendChild(thinking);
+  try {
+    const res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    const data = await res.json();
+    thinking.remove();
+    if (data.error) addMsg('Error: ' + data.error, 'bot');
+    else addMsg(data.answer, 'bot', data.sources);
+  } catch (e) {
+    thinking.remove();
+    addMsg('Network error. Please try again.', 'bot');
+  }
+  sendBtn.disabled = false;
+  q.focus();
+}
+
+q.addEventListener('keydown', e => { if (e.key === 'Enter') ask(); });
+</script>
+</body>
+</html>
